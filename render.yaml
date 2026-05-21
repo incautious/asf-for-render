@@ -2,22 +2,27 @@ services:
   - type: web
     name: asf
     env: docker
-    dockerfile: ./Dockerfile
+    dockerfilePath: ./Dockerfile
     plan: starter
 
     envVars:
       - key: ASF_VERSION
-        value: ${{ secrets.ASF_VERSION }}
+        sync: false
+
       - key: ASF_IPC_PORT
-        value: ${{ secrets.ASF_IPC_PORT }}
+        value: "8000"
+
       - key: GITHUB_USERNAME
-        value: ${{ secrets.GITHUB_USERNAME }}
+        sync: false
+
       - key: GITHUB_TOKEN
-        value: ${{ secrets.GITHUB_TOKEN }}
+        sync: false
+
       - key: GITHUB_REPOSITORY_USERNAME
-        value: ${{ secrets.GITHUB_REPOSITORY_USERNAME }}
+        sync: false
+
       - key: GITHUB_REPOSITORY_NAME
-        value: ${{ secrets.GITHUB_REPOSITORY_NAME }}
+        sync: false
 
     disk:
       name: asf-config
@@ -25,5 +30,5 @@ services:
       sizeGB: 1
 
     ports:
-      - port: ${{ secrets.ASF_IPC_PORT }}
-        protocol: http
+      - port: 8000
+        protocol: tcp

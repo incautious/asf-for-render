@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-export ASF_IPC_PORT=${ASF_IPC_PORT:-1242}
+export ASF_IPC_PORT=${ASF_IPC_PORT:-8000}
 
 echo "Starting ASF with IPC port ${ASF_IPC_PORT}"
 
