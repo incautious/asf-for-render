@@ -10,7 +10,7 @@ services:
         sync: false
 
       - key: ASF_IPC_PORT
-        value: "8000"
+        value: "1242"
 
       - key: GITHUB_USERNAME
         sync: false
@@ -28,7 +28,3 @@ services:
       name: asf-config
       mountPath: /app/config
       sizeGB: 1
-
-    ports:
-      - port: 8000
-        protocol: tcp
