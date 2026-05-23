@@ -4,7 +4,7 @@ set -ex
 MODE=${1:-boot}
 
 CONFIG_DIR="/app/config"
-TMP_CLONE="/tmp/asf-config"
+
 REPOSITORY_URL="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY_USERNAME}/${GITHUB_REPOSITORY_NAME}.git"
 BRANCH="master"
 
@@ -14,36 +14,45 @@ git_setup () {
   cd "$CONFIG_DIR"
 
   git config user.name "${GITHUB_USERNAME}"
-  git config user.email "${GITHUB_EMAIL}" || true
+  git config user.email "${GITHUB_EMAIL}"
 
-  git remote remove origin 2>/dev/null || true
-  git remote add origin "$REPOSITORY_URL" 2>/dev/null || true
+  if git remote get-url origin >/dev/null 2>&1; then
+    git remote set-url origin "$REPOSITORY_URL"
+  else
+    git remote add origin "$REPOSITORY_URL"
+  fi
 }
 
 boot_sync () {
   echo "Starting boot sync process"
 
-  rm -rf "$TMP_CLONE"
-
-  git clone \
-    --depth 1 \
-    --branch "$BRANCH" \
-    "$REPOSITORY_URL" \
-    "$TMP_CLONE" || { echo "Git clone failed"; exit 1; }
-
   mkdir -p "$CONFIG_DIR"
 
-  echo "Copying configs to $CONFIG_DIR, preserving .gitkeep"
+  if [ -d "$CONFIG_DIR/.git" ]; then
+    echo "Existing git repository found in $CONFIG_DIR"
 
-  rsync -a --delete \
-    --exclude '.git' \
-    "$TMP_CLONE"/ "$CONFIG_DIR"/
+    cd "$CONFIG_DIR"
 
-  cd "$CONFIG_DIR"
+    git_setup
 
-  git init 2>/dev/null || true
+    git reset --hard
 
-  git_setup
+    git pull --rebase origin "$BRANCH"
+  else
+    echo "Cloning fresh repository to $CONFIG_DIR"
+
+    rm -rf "$CONFIG_DIR"
+
+    git clone \
+      --depth 1 \
+      --branch "$BRANCH" \
+      "$REPOSITORY_URL" \
+      "$CONFIG_DIR"
+
+    cd "$CONFIG_DIR"
+
+    git_setup
+  fi
 
   echo "Boot sync completed"
 }
@@ -51,19 +60,29 @@ boot_sync () {
 push_sync () {
   echo "Starting push sync process"
 
+  cd "$CONFIG_DIR"
+
   git_setup
 
   if [ -z "$(git status --porcelain)" ]; then
     echo "No changes to push"
 
-    exit 0
+    return 0
   fi
 
-  echo "Changes detected, pushing to repository"
+  echo "Changes detected, preparing commit"
 
-  git add -A || true
-  git commit -a -m "$(git status --porcelain | wc -l) files | $(git status --porcelain | sed '{:q;N;s/\n/, /g;t q}' | sed 's/^ *//g')" || true
-  git push "$REPOSITORY_URL" "$BRANCH" || true
+  git add -A
+
+  git commit -m "auto sync $(date '+%Y-%m-%d %H:%M:%S')" || true
+
+  echo "Pulling latest changes from repository to avoid conflicts"
+
+  git pull --rebase origin "$BRANCH" || true
+
+  echo "Pushing changes to repository"
+
+  git push origin "$BRANCH" || true
 
   echo "Push sync completed"
 }
@@ -78,8 +97,6 @@ watch_sync () {
 
     push_sync || true
   done
-
-  echo "Watch sync process exited"
 }
 
 case "$MODE" in
