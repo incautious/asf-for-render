@@ -41,10 +41,9 @@ boot_sync () {
   else
     echo "Cloning fresh repository to $CONFIG_DIR"
 
-    rm -rf "$CONFIG_DIR"
+    find "$CONFIG_DIR" -mindepth 1 -delete || true
 
     git clone \
-      --depth 1 \
       --branch "$BRANCH" \
       "$REPOSITORY_URL" \
       "$CONFIG_DIR"
