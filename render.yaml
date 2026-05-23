@@ -15,6 +15,9 @@ services:
       - key: GITHUB_USERNAME
         sync: false
 
+      - key: GITHUB_EMAIL
+        sync: false
+
       - key: GITHUB_TOKEN
         sync: false
 

@@ -4,7 +4,7 @@ FROM justarchi/archisteamfarm:${ASF_VERSION}
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-  git bash netcat-openbsd rsync \
+  git bash rsync inotify-tools \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
