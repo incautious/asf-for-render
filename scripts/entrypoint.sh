@@ -1,9 +1,17 @@
 #!/bin/bash
 set -e
 
-export ASF_IPC_PORT=${ASF_IPC_PORT:-1242}
+export ASF_IPC_PORT=${ASF_IPC_PORT:-8000}
 
-echo "Starting ASF with IPC port ${ASF_IPC_PORT}"
+echo "Starting temporary healthcheck server on port 8000"
+
+(
+while true; do
+  printf "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK" | nc -l -p 8000
+done
+) >/dev/null 2>&1 &
+
+HEALTH_PID=$!
 
 echo "Running boot sync"
 
@@ -15,7 +23,7 @@ echo "Starting config watch process"
 
 WATCH_PID=$!
 
-echo "Starting ASF main process"
+echo "Starting ASF"
 
 cd /asf
 
@@ -24,6 +32,10 @@ dotnet ArchiSteamFarm.dll --no-restart --service &
 ASF_PID=$!
 
 echo "ASF started with PID ${ASF_PID}"
+
+sleep 10
+
+kill $HEALTH_PID 2>/dev/null || true
 
 cleanup () {
   echo "Stopping ASF and config watch processes"
