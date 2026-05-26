@@ -11,7 +11,11 @@ export GCM_INTERACTIVE=Never
 
 REPOSITORY_URL="https://oauth2:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY_USERNAME}/${GITHUB_REPOSITORY_NAME}.git"
 
-BRANCH="master"
+DEFAULT_BRANCH="${GITHUB_DEFAULT_BRANCH:-master}"
+
+get_branch () {
+  git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "$DEFAULT_BRANCH"
+}
 
 git_setup () {
   git config --global --add safe.directory "$CONFIG_DIR" || true
@@ -40,6 +44,8 @@ boot_sync () {
 
     git_setup
 
+    BRANCH="$(get_branch)"
+
     git reset --hard
 
     timeout 60 git \
@@ -54,7 +60,7 @@ boot_sync () {
       -c credential.helper= \
       clone \
       --depth 1 \
-      --branch "$BRANCH" \
+      --branch "$DEFAULT_BRANCH" \
       "$REPOSITORY_URL" \
       "$TMP_DIR"
 
@@ -77,6 +83,8 @@ push_sync () {
 
   git_setup
 
+  BRANCH="$(get_branch)"
+
   if [ -z "$(git status --porcelain)" ]; then
     echo "No changes to push"
 
@@ -85,9 +93,9 @@ push_sync () {
 
   echo "Changes detected, preparing commit"
 
-  git add -A
+  git add -A || true
 
-  git commit -m "auto sync $(date '+%Y-%m-%d %H:%M:%S')" || true
+  git commit -a -m "$(git status --porcelain | wc -l) files | $(git status --porcelain | sed '{:q;N;s/\n/, /g;t q}' | sed 's/^ *//g')" || true
 
   echo "Pulling latest changes from repository to avoid conflicts"
 
