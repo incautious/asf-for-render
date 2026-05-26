@@ -4,8 +4,13 @@ set -ex
 MODE=${1:-boot}
 
 CONFIG_DIR="/app/config"
+TMP_DIR="/tmp/asf-config"
 
-REPOSITORY_URL="https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY_USERNAME}/${GITHUB_REPOSITORY_NAME}.git"
+export GIT_TERMINAL_PROMPT=0
+export GCM_INTERACTIVE=Never
+
+REPOSITORY_URL="https://oauth2:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY_USERNAME}/${GITHUB_REPOSITORY_NAME}.git"
+
 BRANCH="master"
 
 git_setup () {
@@ -14,7 +19,7 @@ git_setup () {
   cd "$CONFIG_DIR"
 
   git config user.name "${GITHUB_USERNAME}"
-  git config user.email "${GITHUB_EMAIL}"
+  git config user.email "${GITHUB_EMAIL:-asf@render.local}"
 
   if git remote get-url origin >/dev/null 2>&1; then
     git remote set-url origin "$REPOSITORY_URL"
@@ -37,16 +42,25 @@ boot_sync () {
 
     git reset --hard
 
-    git pull --rebase origin "$BRANCH"
+    timeout 60 git \
+      -c credential.helper= \
+      pull --rebase origin "$BRANCH"
   else
-    echo "Cloning fresh repository to $CONFIG_DIR"
+    echo "Cloning fresh repository"
+
+    rm -rf "$TMP_DIR"
+
+    timeout 60 git \
+      -c credential.helper= \
+      clone \
+      --depth 1 \
+      --branch "$BRANCH" \
+      "$REPOSITORY_URL" \
+      "$TMP_DIR"
 
     find "$CONFIG_DIR" -mindepth 1 -delete || true
 
-    git clone \
-      --branch "$BRANCH" \
-      "$REPOSITORY_URL" \
-      "$CONFIG_DIR"
+    cp -a "$TMP_DIR"/. "$CONFIG_DIR"/
 
     cd "$CONFIG_DIR"
 
@@ -77,11 +91,15 @@ push_sync () {
 
   echo "Pulling latest changes from repository to avoid conflicts"
 
-  git pull --rebase origin "$BRANCH" || true
+  timeout 60 git \
+    -c credential.helper= \
+    pull --rebase origin "$BRANCH" || true
 
   echo "Pushing changes to repository"
 
-  git push origin "$BRANCH" || true
+  timeout 60 git \
+    -c credential.helper= \
+    push origin "$BRANCH" || true
 
   echo "Push sync completed"
 }
@@ -90,7 +108,10 @@ watch_sync () {
   echo "Starting watch sync process"
 
   while true; do
-    inotifywait -r -e modify,create,delete,move "$CONFIG_DIR"
+    inotifywait \
+      -r \
+      -e modify,create,delete,move \
+      "$CONFIG_DIR"
 
     sleep 2
 
